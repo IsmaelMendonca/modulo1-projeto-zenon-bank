@@ -13,7 +13,8 @@ public record Transaction(
 
     @Override
     public String toString() {
-        return "step:" + step +
+        return "Transaction[" +
+                "step:" + step +
                 ", type:" + type +
                 ", amount:" + amount +
                 ", nameOrig:" + customerOrig.name() +
@@ -23,7 +24,7 @@ public record Transaction(
                 ", oldBalanceDest:" + customerDest.oldBalance() +
                 ", newBalanceDest:" + customerDest.newBalance() +
                 ", isFraud:" + (isFraud ? "1" : "0") +
-                ", isFlaggedFraud:" + (isFlaggedFraud ? "1" : "0");
+                ", isFlaggedFraud:" + (isFlaggedFraud ? "1" : "0") + "]";
     }
 
     public enum TransactionType {
