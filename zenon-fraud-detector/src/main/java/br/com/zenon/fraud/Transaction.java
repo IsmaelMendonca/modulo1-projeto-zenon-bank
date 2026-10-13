@@ -6,12 +6,8 @@ public record Transaction(
         int step,
         TransactionType type,
         BigDecimal amount,
-        String nameOrig,
-        BigDecimal oldBalanceOrg,
-        BigDecimal newBalanceOrig,
-        String nameDest,
-        BigDecimal oldBalanceDest,
-        BigDecimal newBalanceDest,
+        TransactionCustomer customerOrig,
+        TransactionCustomer customerDest,
         boolean isFraud,
         boolean isFlaggedFraud) {
 
@@ -20,12 +16,12 @@ public record Transaction(
         return "step:" + step +
                 ", type:" + type +
                 ", amount:" + amount +
-                ", nameOrig:" + nameOrig +
-                ", oldBalanceOrg:" + oldBalanceOrg +
-                ", newBalanceOrig:" + newBalanceOrig +
-                ", nameDest:" + nameDest +
-                ", oldBalanceDest:" + oldBalanceDest +
-                ", newBalanceDest:" + newBalanceDest +
+                ", nameOrig:" + customerOrig.name() +
+                ", oldBalanceOrig:" + customerOrig.oldBalance() +
+                ", newBalanceOrig:" + customerOrig.newBalance() +
+                ", nameDest:" + customerDest.name() +
+                ", oldBalanceDest:" + customerDest.oldBalance() +
+                ", newBalanceDest:" + customerDest.newBalance() +
                 ", isFraud:" + (isFraud ? "1" : "0") +
                 ", isFlaggedFraud:" + (isFlaggedFraud ? "1" : "0");
     }
