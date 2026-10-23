@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class TransactionIngestor {
@@ -18,7 +19,7 @@ public class TransactionIngestor {
         this.fileName = fileName;
     }
 
-    public List<Transaction> getTransactions(int maxLines) {
+    public List<Transaction> getTransactions(int maxLines) throws Exception {
         transactions = new ArrayList<>();
 
         if(fileName == null || fileName.isBlank()) {
@@ -30,50 +31,101 @@ public class TransactionIngestor {
         try(BufferedReader bufferedReader = new BufferedReader(new FileReader(path.toFile()))) {
             String line;
             int count = 0;
-            while((line = bufferedReader.readLine()) != null && count < maxLines) {
-                if(count == 0) {
+            while ((line = bufferedReader.readLine()) != null && count < maxLines) {
+                if (count == 0) {
                     count++;
                     continue;
                 }
 
-                String[] lineData = line.split(",");
-
-
-//                int step,
-//                Transaction.TransactionType type,
-//                BigDecimal amount,
-//                TransactionCustomer customerOrig,
-//                          String name, BigDecimal oldBalance, BigDecimal newBalance
-//                TransactionCustomer customerDest,
-//                          String name, BigDecimal oldBalance, BigDecimal newBalance
-//                boolean isFraud,
-//                boolean isFlaggedFraud
-
-                Transaction transaction = new Transaction(
-                        Integer.parseInt(lineData[0].trim()),
-                        TransactionType.valueOf(lineData[1].trim()),
-                        new BigDecimal(lineData[2].trim()),
-                        new TransactionCustomer(
-                                lineData[3].trim(),
-                                new BigDecimal(lineData[4].trim()),
-                                new BigDecimal(lineData[5].trim())
-                        ),
-                        new TransactionCustomer(
-                                lineData[6].trim(),
-                                new BigDecimal(lineData[7].trim()),
-                                new BigDecimal(lineData[8].trim())
-                        ),
-                        (Integer.parseInt(lineData[9].trim()) == 1),
-                        (Integer.parseInt(lineData[10].trim()) == 1)
-                );
-
-                transactions.add(transaction);
+                try {
+                    transactions.add(getTransaction(line.split(",", -1)));
+                } catch (TransactionException e) {
+                    System.err.println("Erro: " + line + " | " + e.getMessage());
+                }
                 count++;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
         return transactions;
+    }
+
+    private Transaction getTransaction(String[] lineData) throws TransactionException {
+        if (lineData.length < 11) {
+            throw new TransactionException("Invalid column count: " + lineData.length);
+        }
+
+        int step;
+        try {
+            step = Integer.parseInt(lineData[0].trim());
+        } catch (NumberFormatException e) {
+            throw new TransactionException("Invalid step value: " + lineData[0], e);
+        }
+
+        if (step < 1) {
+            throw new TransactionException("step should be positive: " + step);
+        }
+
+        TransactionType transactionType = Arrays.stream(TransactionType.values())
+                .filter(x -> x.name().equalsIgnoreCase(lineData[1].trim()))
+                .findFirst()
+                .orElseThrow(() -> new TransactionException("Invalid transaction type: " + lineData[1]));
+
+        BigDecimal amount = validateAndGetBigDecimalValue(lineData[2], "amount");
+
+        TransactionCustomer customerOrig = new TransactionCustomer(
+                validateName(lineData[3], "nameOrig"),
+                validateAndGetBigDecimalValue(lineData[4], "oldBalanceOrig"),
+                validateAndGetBigDecimalValue(lineData[5], "newBalanceOrig")
+        );
+        TransactionCustomer customerDest = new TransactionCustomer(
+                validateName(lineData[6], "nameDest"),
+                validateAndGetBigDecimalValue(lineData[7], "oldBalanceDest"),
+                validateAndGetBigDecimalValue(lineData[8], "newBalanceDest")
+        );
+        boolean isFraud = parseFlag(lineData[9], "isFraud");
+        boolean isFlaggedFraud = parseFlag(lineData[10], "isFlaggedFraud");
+
+        return new Transaction(
+                step,
+                transactionType,
+                amount,
+                customerOrig,
+                customerDest,
+                isFraud,
+                isFlaggedFraud
+        );
+    }
+
+    private String validateName(String data, String tag) throws TransactionException {
+        if (data == null || data.isBlank()) {
+            throw new TransactionException(tag + " should not be empty");
+        }
+        return data.trim();
+    }
+
+    private boolean parseFlag(String data, String tag) throws TransactionException {
+        String value = data == null ? "" : data.trim();
+        if (value.equals("1")) return true;
+        if (value.equals("0")) return false;
+        throw new TransactionException("Invalid " + tag + " value: " + data);
+    }
+
+    private BigDecimal validateAndGetBigDecimalValue(String data, String tag) throws TransactionException {
+        if(data == null || data.isBlank()) {
+            throw new TransactionException(tag + " should not be empty");
+        }
+
+        try {
+            BigDecimal value = new BigDecimal(data.trim().replace(",", "."));
+
+            if(value.signum() < 0) {
+                throw new TransactionException(tag + " should be positive: " + data);
+            }
+
+            return value;
+
+        } catch (NumberFormatException e) {
+            throw new TransactionException("Invalid " + tag + " value: " + data, e);
+        }
     }
 }
